@@ -1,0 +1,67 @@
+Is existing admin dashboard React (Vite + react-router-dom v7) project ko e-commerce backend se connect karna hai.
+Backend already bana hua hai in endpoints ke saath (base URL .env se aayega):
+
+Public: GET /api/products, GET /api/products/:id
+Admin (JWT protected, Authorization: Bearer <token> header chahiye):
+  POST /api/admin/login              body: { email, password } → response: { token, admin }
+  POST /api/products                 body: { title, price, oldPrice, discount, rating, image, category, stock, description }
+  PUT  /api/products/:id
+  DELETE /api/products/:id
+  GET  /api/orders
+  PUT  /api/orders/:id               body: { status }
+  GET  /api/admin/stats              response: { totalProducts, totalOrders, totalRevenue, totalCustomers, recentOrders }
+
+Existing project structure ko reuse karo (Sidebar.jsx, Navbar.jsx, Layout.jsx, ThemeContext.jsx waise hi rehne do, 
+sirf naya content inke andar add karo). Pages jo abhi hain (CRM, Blog, Invoice, Charts, Statistics, Data, Users, Customers) 
+unko touch mat karo, chhod do jaise hain.
+
+STEP 1 — API setup:
+- axios install karo
+- src/services/api.js banao: axios instance, baseURL = import.meta.env.VITE_API_URL, 
+  request interceptor jo localStorage se "adminToken" lekar Authorization header mein lagaye
+- response interceptor: agar 401 aaye to token clear karke /login par redirect kare
+- .env.example banao with VITE_API_URL
+
+STEP 2 — Authentication:
+- src/pages/login/Login.jsx banao (naya page, route "/login", Layout ke bahar — login page par Sidebar/Navbar na dikhe)
+- Login form: email + password, POST /api/admin/login call kare, success par token + admin info 
+  localStorage mein save kare ("adminToken", "adminInfo"), phir /dashboard par redirect
+- src/components/ProtectedRoute.jsx banao: agar localStorage mein adminToken nahi hai to /login par redirect kare, 
+  warna children render kare
+- App.jsx update karo: "/login" route Layout ke bahar rakho, baaki saare existing routes (/dashboard, /products, 
+  /orders, /data, /users, /customers, /crm, /blog, /invoice, /charts, /statistics) ko ProtectedRoute se wrap karo
+- Navbar.jsx mein ek "Logout" button add karo jo localStorage clear karke /login bheje, aur agar admin info 
+  available hai to admin ka naam/email dikhaye
+
+STEP 3 — Products Page (naya):
+- src/pages/products/Products.jsx aur products.css banao (existing pages jaisi styling follow karte hue — 
+  same card/table design pattern jo Customers.jsx ya Data.jsx mein use hua hai use karo consistency ke liye)
+- GET /api/products se table/grid mein products list karo: image, title, price, category, stock, actions (edit/delete)
+- "Add Product" button → modal/form open ho with fields: title, price, oldPrice, discount, rating, image (URL input 
+  filhal ke liye, ya file upload agar simple ho sake), category, stock, description
+- Add form submit → POST /api/products, list ko refresh karo
+- Edit button → same form pre-filled → PUT /api/products/:id
+- Delete button → confirmation ke baad DELETE /api/products/:id
+- Loading state aur empty state handle karo
+- Sidebar.jsx mein "Products" ka naya menu item add karo (icon ke saath, react-icons already installed hai), 
+  route "/products" par link kare, Dashboard aur Data ke beech mein position karo
+
+STEP 4 — Orders Page (naya):
+- src/pages/orders/Orders.jsx aur orders.css banao, Products page jaisi hi styling consistency rakho
+- GET /api/orders se table mein orders list karo: order id, customer name, items count, total amount, 
+  status (colored badge), date, actions
+- Har row mein status update ke liye dropdown (pending/processing/shipped/delivered/cancelled) → 
+  change hote hi PUT /api/orders/:id call ho
+- Row click par order details expand/modal ho (items list, customer info: name, email, phone, address, payment method)
+- Sidebar.jsx mein "Orders" ka naya menu item add karo, Products ke neeche
+
+STEP 5 — Dashboard Page update:
+- Dashboard.jsx ke static/dummy numbers hatao
+- GET /api/admin/stats call karo useEffect mein, response se: totalProducts, totalOrders, totalRevenue, 
+  totalCustomers cards mein show karo (existing card design use karo)
+- recentOrders se ek "Recent Orders" table/list section bhi dikhao (existing design pattern follow karte hue)
+- Agar existing charts (recharts already installed hai) kaam ke hain to unko bhi real data se feed karo, 
+  warna static rehne do abhi
+
+Har file change ke baad batana ke kaunsi file mein kya add/change hua, taake main track rakh sakoon.
+Saari naming conventions aur CSS styling pattern existing project ke jaisa hi follow karna (consistency ke liye).
